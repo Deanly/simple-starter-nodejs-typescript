@@ -1,7 +1,7 @@
 import socket_io from "socket.io";
 
 function routeAgent (conn: socket_io.Socket) {
-    const ctx = {
+    const context = {
         _conn_id: conn.id,
         _conn: conn,
         on: function (evt: string, func: Function) {

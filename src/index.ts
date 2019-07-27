@@ -1,4 +1,3 @@
-
 import fs from "fs";
 import path from "path";
 import async from "async";
@@ -15,64 +14,75 @@ import { init as initHttpRouter } from "./routes/http-router";
 import { init as initSocketRouter } from "./routes/socket-router";
 
 let app: express.Express;
+let env_file_name: string;
 
 const NODE_APP_INSTANCE = 0;
+const initLogger = logger.simple;
 
 async.waterfall([
-
-    function loadConfiguration (cb: Function) {
-        dotenv.config({ path: ".env.example" });
-        cb();
-    },
 
     function loadCmdParameters (cb: Function) {
         for (let i = 2; i < process.argv.length; i++) {
             switch (process.argv[i]) {
-                case "--debug": process.env.DEBUG_MODE = "true"; break;
+                case "--debug": global.debug = true; break;
                 default:
+                    if (process.argv[i].split("=")[0] === "--env") env_file_name = process.argv[i].split("=")[1];
                     break;
             }
         }
         return cb();
     },
 
+    function loadConfiguration (cb: Function) {
+        /** dotenv configurations */
+        dotenv.config({ path: env_file_name || ".env.example" });
+
+        /** global custom configurations */
+        global.VIEWS_HTML_PATH = path.join(__dirname, "..", "www", "views", "html");
+        return cb();
+    },
+
     function initializeLogger (cb: Function) {
-        if (process.env.DEBUG_MODE === "true") {
-            logger.level = "debug";
-            logger.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            logger.warn("!!!! Running with debug-mode enabled !!!!");
-            logger.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        if (global.debug === true) {
+            initLogger.level = "debug";
+            initLogger.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            initLogger.warn("!!!! Running with debug-mode enabled !!!!");
+            initLogger.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
         return cb();
     },
 
-    function initiateDatabases (cb: Function) {
-        cb();
+    function connectDatabase (cb: Function) {
+        return cb();
     },
 
     function initializeStages (cb: Function) {
         const initWorker = function (dir: string, cb: Function) {
             let p = 0;
-            async.mapSeries(fs.readdirSync("./src/" + dir), function (componentName, cb) {
+            async.mapSeries(fs.readdirSync(`./dist/${dir}`), function (componentName, cb) {
                 const n = ++p;
-                if (fs.lstatSync("./src/" + dir + "/" + componentName).isDirectory()) {
+                if (fs.lstatSync(`./dist/${dir}/${componentName}`).isDirectory()) {
                     if (componentName !== "ddl") {
-                        initWorker("./" + dir + "/" + componentName, cb);
+                        initWorker(`./${dir}/${componentName}`, cb);
                     } else {
-                        logger.debug("\x1b[33m[" + n + "]Skip " + dir + " " + componentName + "  \x1b[0m");
+                        initLogger.debug(`\x1b[33m[${n}]Skip ${dir} ${componentName} \x1b[0m`);
                         cb();
                     }
                 } else {
-                    const component = require("./" + dir + "/" + componentName);
-                    /* Temporary code for use local ip */
-                    if (component.init) {
-                        logger.debug("\x1b[36m[" + n + "]Initiating " + dir + " " + componentName + "  \x1b[0m");
-                        component.init((err: Error) => {
-                            logger.debug("\x1b[32m[" + n + "]Done " + dir + " " + componentName + "  \x1b[0m");
-                            cb(err);
-                        });
+                    if (componentName.endsWith("js")) {
+                        const component = require(`./${dir}/${componentName}`);
+                        if (component.init) {
+                            initLogger.debug(`\x1b[36m[${n}]Initiating ${dir} ${componentName} \x1b[0m`);
+                            component.init((err?: Error) => {
+                                initLogger.debug(`\x1b[32m[${n}"]Done ${dir} ${componentName} \x1b[0m`);
+                                cb(err);
+                            });
+                        } else {
+                            initLogger.debug(`\x1b[33m[${n}]Skip ${dir} ${componentName} \x1b[0m`);
+                            cb();
+                        }
                     } else {
-                        logger.debug("\x1b[33m[" + n + "]Skip " + dir + " " + componentName + "  \x1b[0m");
+                            initLogger.debug(`[${n}]Skip ${dir} ${componentName}`);
                         cb();
                     }
                 }
@@ -93,12 +103,11 @@ async.waterfall([
         app = express();
         const server = http.createServer(app);
         const socketServer = http.createServer(function (q, r) {
-            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN) {
-                r.setHeader("Access-Control-Allow-Origin", process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN);
-                r.setHeader("Access-Control-Allow-Methods", process.env.SOCKET_ACCESS_CONTROL_ALLOW_METHODS);
-                r.setHeader("Access-Control-Allow-HEADERS", process.env.SOCKET_ACCESS_CONTROL_ALLOW_HEADERS);
-                r.setHeader("Access-Control-Allow-Credentials", process.env.SOCKET_ACCESS_CONTROL_ALLOW_CREDENTIALS);
-            }
+            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN) { r.setHeader("Access-Control-Allow-Origin", process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN); }
+            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_METHODS) { r.setHeader("Access-Control-Allow-Methods", process.env.SOCKET_ACCESS_CONTROL_ALLOW_METHODS); }
+            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_HEADERS) { r.setHeader("Access-Control-Allow-HEADERS", process.env.SOCKET_ACCESS_CONTROL_ALLOW_HEADERS); }
+            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_CREDENTIALS) { r.setHeader("Access-Control-Allow-Credentials", process.env.SOCKET_ACCESS_CONTROL_ALLOW_CREDENTIALS); }
+
             r.setHeader("Cache-Control", "no-cache");
         });
         const io = socket_io(socketServer);
@@ -115,16 +124,23 @@ async.waterfall([
 
         /* Bind Cross Domain Handler */
         app.use(function (req, res, next) {
-            res.header("Access-Control-Allow-Origin", process.env.ACCESS_CONTROL_ALLOW_ORIGIN);
-            res.header("Access-Control-Allow-Methods", process.env.ACCESS_CONTROL_ALLOW_METHODS);
-            res.header("Access-Control-Allow-Headers", process.env.ACCESS_CONTROL_ALLOW_HEADERS);
+            if (process.env.ACCESS_CONTROL_ALLOW_ORIGIN) { res.header("Access-Control-Allow-Origin", process.env.ACCESS_CONTROL_ALLOW_ORIGIN); }
+            if (process.env.ACCESS_CONTROL_ALLOW_METHODS) { res.header("Access-Control-Allow-Methods", process.env.ACCESS_CONTROL_ALLOW_METHODS); }
+            if (process.env.ACCESS_CONTROL_ALLOW_HEADERS) { res.header("Access-Control-Allow-Headers", process.env.ACCESS_CONTROL_ALLOW_HEADERS); }
 
             if ("OPTIONS" === req.method) res.sendStatus(200);
             else next();
         });
 
         /* Bind Static Service Path */
-        app.use("/", express.static("www"));
+        // app.use("/", express.static("www"));
+        app.use("/resources", express.static("www/resources"));
+
+        /* renderer */
+        // app.use(renderer);
+        global.viewFilePath = (view: string) => {
+            return path.join(global.VIEWS_HTML_PATH, view);
+        };
 
         cb(undefined, server, socketServer, io);
     },
@@ -133,7 +149,7 @@ async.waterfall([
         initHttpRouter((err, router) => {
             if (err) return cb(err);
             app.use(router);
-            logger.info("Initialized Http Router");
+            initLogger.info("Initialized Http Router");
             return cb(undefined, server, socketServer, io);
         });
     },
@@ -141,7 +157,7 @@ async.waterfall([
     function bindSocketRouter (server: http.Server, socketServer: http.Server, io: socket_io.Server, cb: Function) {
         initSocketRouter(io, function (err: Error) {
             if (err) return cb(err);
-            logger.info("Initialize Socket Router");
+            initLogger.info("Initialize Socket Router");
             return cb(undefined, server, socketServer);
         });
     },
@@ -152,7 +168,7 @@ async.waterfall([
         });
 
         const errorHandler: express.ErrorRequestHandler = (err, req, res) => {
-            logger.error(err);
+            initLogger.error(err);
             res.status(500).send({ code: "500", message: "internal server error" });
         };
         app.use(errorHandler);
@@ -161,19 +177,22 @@ async.waterfall([
 
     function startListenHttp (server: http.Server, socketServer: http.Server, cb: Function) {
         const port = parseInt(process.env.BASE_PORT);
-        logger.info("Binding on HTTP port " + port);
+        initLogger.info("Binding on HTTP port " + port);
         server.listen(port);
+        global.http_port = port;
         cb(undefined, socketServer);
     },
 
     function bindEndpoint (socketServer: http.Server, cb: Function) {
-        process.env.END_POINT = "172.0.0.1";
+        global.host = process.env.END_POINT || "127.0.0.1";
+        cb(undefined, socketServer);
     },
 
     function startListenSocket (socketServer: http.Server, cb: Function) {
         const socketPort = parseInt(process.env.SOCKET_PORT) + NODE_APP_INSTANCE;
-        logger.info("Binding on SocketIO port " + socketPort);
+        initLogger.info("Binding on SocketIO port " + socketPort);
         socketServer.listen(socketPort);
+        global.socket_port = socketPort;
         cb();
     },
 
@@ -198,14 +217,14 @@ async.waterfall([
                 directory: stats.mode & 0o0040000 ? true : false,
             }
         };
-        logger.info("Server Information", "UserInfo", serverInfo.userInfo, "DirectoryInfo", serverInfo.directory);
+        initLogger.info(`Server Information\n\tUserInfo: ${JSON.stringify(serverInfo.userInfo)}\n\tDirectoryInfo: ${JSON.stringify(serverInfo.directory)}`);
         cb();
     }
 
 ], (err: any) => {
     if (err) {
-        logger.error(err);
+        initLogger.error(err);
         throw "Failed to startup service";
     }
-    logger.info("The service is prepared. " + process.env.END_POINT);
+    initLogger.info(`The service is prepared. ${global.host}`);
 });

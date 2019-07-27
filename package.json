@@ -4,12 +4,12 @@
   "description": "simple",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/Deanly/simple-starter-nodejs-typescript"
   },
-  "author": "dean.lee@kakaocorp.com (Nam-Young Lee)",
+  "author": "deanly88@gmail.com",
   "license": "MIT",
   "scripts": {
-    "start": "npm run serve",
+    "start": "npm run build && npm run serve",
     "build": "npm run build-ts && npm run tslint",
     "serve": "node dist/index.js",
     "watch-node": "nodemon dist/index.js",
@@ -18,8 +18,8 @@
     "build-ts": "tsc",
     "watch-ts": "tsc -w",
     "tslint": "tslint -c tslint.json -p tsconfig.json",
-    "debug": "npm run build && npm run watch-debug",
-    "serve-debug": "nodemon --inspect dist/index.js"
+    "debug": "npm run build && npm run serve-debug",
+    "serve-debug": "nodemon --inspect dist/index.js --debug"
   },
   "dependencies": {
     "async": "^3.1.0",
