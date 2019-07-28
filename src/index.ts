@@ -9,7 +9,7 @@ import socket_io from "socket.io";
 import body_parser from "body-parser";
 import cookie_parser from "cookie-parser";
 
-import logger from "./util/logger";
+import { simple as initLogger } from "./util/logger";
 import { init as initHttpRouter } from "./routes/http-router";
 import { init as initSocketRouter } from "./routes/socket-router";
 
@@ -17,7 +17,6 @@ let app: express.Express;
 let env_file_name: string;
 
 const NODE_APP_INSTANCE = 0;
-const initLogger = logger.simple;
 
 async.waterfall([
 
@@ -62,12 +61,7 @@ async.waterfall([
             async.mapSeries(fs.readdirSync(`./dist/${dir}`), function (componentName, cb) {
                 const n = ++p;
                 if (fs.lstatSync(`./dist/${dir}/${componentName}`).isDirectory()) {
-                    if (componentName !== "ddl") {
-                        initWorker(`./${dir}/${componentName}`, cb);
-                    } else {
-                        initLogger.debug(`\x1b[33m[${n}]Skip ${dir} ${componentName} \x1b[0m`);
-                        cb();
-                    }
+                    initWorker(`./${dir}/${componentName}`, cb);
                 } else {
                     if (componentName.endsWith("js")) {
                         const component = require(`./${dir}/${componentName}`);

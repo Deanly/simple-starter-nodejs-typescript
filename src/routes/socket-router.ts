@@ -1,41 +1,49 @@
 import socket_io from "socket.io";
 
-function routeAgent (conn: socket_io.Socket) {
-    const context = {
-        _conn_id: conn.id,
-        _conn: conn,
-        on: function (evt: string, func: Function) {
-            // secure
-            this._conn.on(evt, func);
-            return func;
-        },
-        off: function (evt: string, func: Function) {
-            if (!func) this._conn.removeAllListeners(evt);
-            else this._conn.removeListener(evt, func);
-        },
-        emit: function (evt: string) {
-            const params = [];
-            params.push(evt);
+import User from "../models/User";
+import { UserContext } from "./supports/context";
+import * as userInbound from "../controllers/socket/user-inbound-controller";
+import * as userOutbound from "../controllers/socket/user-outbound-controller";
+import { simple as logger } from "../util/logger";
 
-            this._conn.emit.apply(this._conn, params);
-        },
+let _guest_count = 1;
+
+function errorHandler (error: Error): void {
+    logger.error(error);
+}
+
+function routeUser (connection: socket_io.Socket) {
+    const context = new UserContext(connection, errorHandler);
+
+    const delegateEventsToContext = () => {
+        connection.on("disconnect", () => userInbound.leaveServer(context));
+
+        context.on("message:send",
+            async (roomId: string, msg: string) =>
+                userInbound.receiveMessage(context, roomId, msg));
+
+        context.on("user:name",
+            async (name: string) =>
+                userInbound.changeUserName(context, name));
     };
 
-    function delegateEventsToContext () {
-        conn.removeAllListeners("close");
-        conn.removeAllListeners("disconnect");
-        conn.removeAllListeners("error");
+    // authorization
 
-        conn.on("close", () => {});
+    const user = new User();
+    user.connId = connection.id;
+    user.name = `GUEST-${_guest_count++}`;
+    context.user = user;
 
-        conn.on("disconnect", () => { });
-    }
+    delegateEventsToContext();
+
+    userInbound.joinServer(context);
+    userInbound.joinRoom(context, "sample_room_id");
 }
 
 
 export function init (socket: socket_io.Server, cb: Function) {
     socket.on("connect", (conn) => {
-        routeAgent(conn);
+        routeUser(conn);
     });
 
     return cb(undefined);

@@ -1,18 +1,24 @@
-const winston = require("winston");
+import { format, createLogger, transports } from "winston";
 
-const logger = winston.createLogger({
-    level: "info",
-    format: winston.format.json(),
-    transports: [
-        new winston.transports.File({ filename: "error.log", level: "error" }),
-        new winston.transports.File({ filename: "combined.log" })
-    ]
+const print = format.printf((info) => {
+    const log = `${info.level}: ${info.message}`;
+
+    return info.stack
+        ? `${log}\n${info.stack}`
+        : log;
 });
 
-logger.add(new winston.transports.Console({
-    format: winston.format.simple()
-}));
-
-export default {
-    simple: logger
-};
+export const simple = createLogger({
+    level: "debug",
+    format: format.combine(
+        format.timestamp(),
+        format.errors({ stack: true }),
+        print,
+        // format.json(),
+    ),
+    transports: [
+        new transports.Console(),
+        // new transports.File({ filename: "error.log", level: "error" }),
+        // new transports.File({ filename: "combined.log" }),
+    ],
+});

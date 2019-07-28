@@ -5,46 +5,198 @@
     </title>
     <style>
         .message-box {
-            height: 400px;
+            height: 60%; 
             width: 300px;
             border: 2px solid black;
+            overflow-x: hidden;
+            overflow-y: scroll;
+        }
+        .message-box .message {
+            padding: 8px;
+            clear: right;
+        }
+        .message-box .message .me {
+            float: right;
+            width: 50%;
+            padding: 16px;
+            background: rgb(250, 217, 71);
+            border-radius: 10px;
+            text-align: right;
+        }
+        .message-box .message .other {
+            width: 50%;
+            padding: 16px;
+            background: gray;
+            color: whitesmoke;
+            border-radius: 10px;
+        }
+        .message-box .message .other .name {
+            font-weight: 500;
+        }
+        .message-box .message .name {
+            font-size: 13px;
+        }
+        .message-box .message .content {
+            font-weight: 300;
+        }
+        .message-box .message .datetime {
+            font-weight: 300;
+            font-size: 12px;
+        }
+        .name-box {
+            height: 30px;
+            width: 300px;
+            border-bottom: 2px solid black;
+            border-left: 2px solid black;
+            border-right: 2px solid black;
+        }
+        .name-box input {
+            text-align: center;
+            height: 30px;
+            width: 300px;
+            border: 0px;
+            background: #23a7ff
         }
         .input-box {
-            height: 50px;
-            width: 300px;
+            display: inline;
         }
-        
+        .input-box #sender_msg {
+            resize: none;
+            height: 50px;
+            width: 240px;
+            margin: 0px;
+            margin-top: 0px;
+        }
+        .input-box #sender_btn {
+            position: absolute;
+            height: 50px;
+            width: 60px;
+            border: 0;
+            margin-top: 0px;
+            background: #23a7ff
+        }
+        .left-frame {
+            float: left;
+        }
+        .right-frame {
+            float: left;
+            padding-left: 8px;
+        }
     </style>
 </head>
 <body>
 <div id="app">
-    <div class="message-box">
-
+    <div class="left-frame">
+        <div class="message-box" ref="msg_box">
+            <template v-for="message in messages">
+                <div class="message">
+                    <div :class="me.connId === message.user.connId ? 'me' : 'other'">
+                        <div class="name">
+                            {{ message.user.name }}
+                        </div>
+                        <div class="content">
+                            {{ message.content }}
+                        </div>
+                        <div class="datetime">
+                            {{ toLocalDatetime(message.receivedAt) }}
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div class="name-box">
+            <input id="binding_my_name" v-model="me.name" @blur="blurMyName" />
+        </div>
+        <div class="input-box">
+            <textarea id="sender_msg" v-model="senderMsg"
+                @keydown.enter.exact.prevent
+                @keyup.enter.exact="send"
+                @keydown.enter.shift.exact="newline"
+            ></textarea>
+            <input id="sender_btn" type="button" value="send" @click.stop="send" />
+        </div>
     </div>
-    <div class="input-box">
-        <input id="sender_msg" />
+    <div class="right-frame">
+        <div>
+            <template v-for="user in users">
+                <div>
+                    {{ user.name }}
+                </div>
+            </template>
+        </div>
     </div>
 </div>
 <script type="text/javascript" src="/resources/lib/js/socket.io.js" ></script>
 <script type="text/javascript" src="/resources/lib/js/vue.min.js" ></script>
 <script type="text/javascript" src="/resources/lib/js/axios.min.js" ></script>
 <script type="text/javascript">
-    var socket;
-    var app = new Vue({
+    let socket;
+    const app = new Vue({
         el: '#app',
         data: {
-            messages: [],
+            roomId: '',
+            users: [],
+            me: {
+                connId: '',
+                name: '',
+            },
+            messages: [
+            ],
+            senderMsg: '',
         },
         computed: {
             
         },
         methods: {
+            send () {
+                if (!this.senderMsg) return;
+                const msg = this.senderMsg;
+                this.senderMsg = '';
+                socket.emit('message:send', this.roomId, msg);
 
+                console.log('message:send', this.roomId, msg);
+            },
+            blurMyName () {
+                socket.emit('user:name', this.me.name);
+
+                console.log('user:name', this.me.name);
+            },
+            newline () { },
+            toLocalDatetime (isoString) {
+                return (new Date(isoString)).toLocaleString();
+            }
         },
         mounted () {
+            const delegateSocketEvents = () => {
+                if (!socket) throw new Error('Not found socket connection');
+
+                socket.on('push:me', (me) => {
+                    this.me = me;
+
+                    console.log('push:me', me);
+                });
+
+                socket.on('push:message', (msg) => {
+                    this.messages.push(msg);
+                    setTimeout(() => { this.$refs.msg_box.scrollTop = 9999999; }, 4);
+
+                    console.log('push:message', msg);
+                });
+
+                socket.on('push:room', (room) => {
+                    this.roomId = room.id;
+                    this.messages = room.messages;
+                    this.users = room.users;
+
+                    console.log('push:room', room);
+                });
+
+            }
+
             axios.get('/endpoint')
                 .then(res => {
                     socket = io(res.data.ws);
+                    delegateSocketEvents();
                 });
         }
     });
