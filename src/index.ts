@@ -8,6 +8,7 @@ import http from "http";
 import socket_io from "socket.io";
 import body_parser from "body-parser";
 import cookie_parser from "cookie-parser";
+import os from "os";
 
 import { simple as initLogger } from "./util/logger";
 import { init as initHttpRouter } from "./routes/http-router";
@@ -178,7 +179,20 @@ async.waterfall([
     },
 
     function bindEndpoint (socketServer: http.Server, cb: Function) {
-        global.host = process.env.END_POINT || "127.0.0.1";
+        if (process.env.HOST) {
+            global.host = process.env.HOST;
+        } else {
+            const ifaces = os.networkInterfaces();
+            Object.keys(ifaces).forEach((ifname) => {
+                ifaces[ifname].forEach((iface) => {
+                    if (global.host || "IPv4" !== iface.family || iface.internal !== false) {
+                        return;
+                    }
+                    global.host = iface.address;
+                });
+            });
+            if (!global.host) global.host = "127.0.0.1";
+        }
         cb(undefined, socketServer);
     },
 
