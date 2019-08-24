@@ -9,7 +9,7 @@ const print = format.printf((info) => {
 });
 
 export const simple = createLogger({
-    level: "debug",
+    level: global.debug ? "debug" : "info",
     format: format.combine(
         format.timestamp(),
         format.errors({ stack: true }),
