@@ -6,6 +6,10 @@ import { UserContext } from "../routes/supports/context";
 const context_rooms: Map<string, Room> = new Map();
 const sample_room_id = "sample_room_id";
 
+export function getAllRooms () {
+    return Array.from(context_rooms.values());
+}
+
 export function init (cb: Function): void {
     const room = new Room(sample_room_id);
     context_rooms.set(sample_room_id, room);

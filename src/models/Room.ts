@@ -19,7 +19,7 @@ export default class Room {
     private _users: Array<User> = [];
     private _messages: Array<Message> = [];
 
-    get data () {
+    get serialize () {
         return {
             id: this.id,
             users: this._users.map(user => user.data),

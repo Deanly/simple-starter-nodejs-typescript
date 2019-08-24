@@ -8,7 +8,8 @@ router.get("/endpoint", apiServerController.myEndpoint);
 import * as viewPageController from "../controllers/view/page-controller";
 router.get("/", viewPageController.indexHome);
 
-
+import * as roomController from "../controllers/api/room-controller";
+router.get("/api/rooms", roomController.getAllRooms);
 
 export function init (cb: (error: Error, router: express.Router) => void) {
     return cb(undefined, router);

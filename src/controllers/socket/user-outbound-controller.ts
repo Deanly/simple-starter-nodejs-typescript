@@ -18,7 +18,7 @@ export function broadcastRoom (roomId: string) {
     room.getUsers()
         .map(user => user_contexts.get(user.connId))
         .filter(ctx => !!ctx)
-        .forEach(ctx => ctx.emit("push:room", room.data));
+        .forEach(ctx => ctx.emit("push:room", room.serialize));
 }
 
 export function sendYou (user: User) {

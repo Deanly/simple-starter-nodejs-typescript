@@ -8,6 +8,7 @@ import http from "http";
 import socket_io from "socket.io";
 import body_parser from "body-parser";
 import cookie_parser from "cookie-parser";
+import lusca from "lusca";
 import os from "os";
 
 import { simple as initLogger } from "./util/logger";
@@ -106,6 +107,17 @@ async.waterfall([
             r.setHeader("Cache-Control", "no-cache");
         });
         const io = socket_io(socketServer);
+
+        // app.use(lusca({
+        //     csrf: true,
+        //     csp: { /* ... */},
+        //     xframe: "SAMEORIGIN",
+        //     p3p: "ABCDEF",
+        //     hsts: {maxAge: 31536000, includeSubDomains: true, preload: true},
+        //     xssProtection: true,
+        //     nosniff: true,
+        //     referrerPolicy: "same-origin"
+        // }));
 
         app.disable("x-powered-by");
         app.disable("etag");
