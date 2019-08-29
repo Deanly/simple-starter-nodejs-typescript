@@ -53,6 +53,11 @@ async.waterfall([
         return cb();
     },
 
+    function performance (cb: Function) {
+        global.Promise = require("bluebird");
+        return cb();
+    },
+
     function connectDatabase (cb: Function) {
         return cb();
     },
