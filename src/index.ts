@@ -46,9 +46,9 @@ async.waterfall([
     function initializeLogger (cb: Function) {
         if (global.debug === true) {
             initLogger.level = "debug";
-            initLogger.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            initLogger.warn("!!!! Running with debug-mode enabled !!!!");
-            initLogger.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            initLogger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            initLogger.warning("!!!! Running with debug-mode enabled !!!!");
+            initLogger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
         return cb();
     },
@@ -184,6 +184,13 @@ async.waterfall([
             res.status(500).send({ code: "500", message: "internal server error" });
         };
         app.use(errorHandler);
+
+        process.on("uncaughtException", (err) => {
+            const error = new ErrorExt(err.message, 500);
+            if (err.stack) error.stack = err.stack;
+            initLogger.alert(error);
+        });
+
         cb(undefined, server, socketServer);
     },
 
