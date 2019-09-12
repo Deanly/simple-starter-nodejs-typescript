@@ -1,7 +1,12 @@
+
 class ErrorExt extends Error {
-    constructor (public message: string, public code: string | number) {
-        super(message);
-    }
+    constructor (
+        public msg: string,
+        public sysCode: string,
+        public params?: ErrorExportParams,
+        public desc?: string,
+        public statusCode?: number,
+    ) { super(`[ErrExt][${sysCode}${params && params.code ? "-" + params.code : ""}]${statusCode ? "[" + statusCode + "]" : "" }["${msg}"]${params ? ":[" + JSON.stringify(params) + "]" : ""}${desc ? "[(" + desc + ")]" : ""}`); }
 }
 
 function setTimeoutPromise (fn: Function, ms: number): Promise<void> {

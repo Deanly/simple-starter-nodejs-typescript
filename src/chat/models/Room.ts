@@ -1,6 +1,6 @@
 import User from "./User";
 import Message from "./Message";
-import { sequelize } from "./data/sequelize";
+import { sequelize } from "../../data-accessor/sequelize";
 
 let orm;
 

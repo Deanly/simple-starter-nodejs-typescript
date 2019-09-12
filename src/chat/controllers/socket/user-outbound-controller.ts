@@ -1,5 +1,5 @@
 import { user_contexts } from "./user-inbound-controller";
-import { UserContext } from "../../routes/supports/context";
+import { UserContext } from "../../../routes/supports/context";
 
 import * as chatService from "../../services/chat-service";
 import Message from "../../models/Message";

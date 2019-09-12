@@ -11,12 +11,17 @@ import cookie_parser from "cookie-parser";
 import lusca from "lusca";
 import os from "os";
 
-import { simple as initLogger } from "./util/logger";
-import { init as initHttpRouter } from "./routes/http-router";
-import { init as initSocketRouter } from "./routes/socket-router";
+require("./implements/global");
+
+import { simple as initLogger } from "../logger";
+import { init as initHttpRouter } from "../routes/http-router";
+import { init as initSocketRouter } from "../routes/socket-router";
+import BootErrors from "./exceptions/BootErrors";
 
 let app: express.Express;
 let env_file_name: string;
+
+let flag_isolated_socket_port = false;
 
 const NODE_APP_INSTANCE = 0;
 
@@ -26,6 +31,7 @@ async.waterfall([
         for (let i = 2; i < process.argv.length; i++) {
             switch (process.argv[i]) {
                 case "--debug": global.debug = true; break;
+                case "--isolated-socket-port": flag_isolated_socket_port = true; break;
                 default:
                     if (process.argv[i].split("=")[0] === "--env") env_file_name = process.argv[i].split("=")[1];
                     break;
@@ -39,7 +45,7 @@ async.waterfall([
         dotenv.config({ path: env_file_name || ".env.example" });
 
         /** global custom configurations */
-        global.VIEWS_HTML_PATH = path.join(__dirname, "..", "www", "views", "html");
+        global.VIEWS_HTML_PATH = path.join(__dirname, "..", "..", "www", "views", "html");
         return cb();
     },
 
@@ -49,6 +55,7 @@ async.waterfall([
             initLogger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             initLogger.warning("!!!! Running with debug-mode enabled !!!!");
             initLogger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            initLogger.debug(JSON.stringify("process.env: " + process.env));
         }
         return cb();
     },
@@ -62,7 +69,7 @@ async.waterfall([
         return cb();
     },
 
-    function initializeStages (cb: Function) {
+    function initializeCore (cb: Function) {
         const initWorker = function (dir: string, cb: Function) {
             let p = 0;
             async.mapSeries(fs.readdirSync(`./dist/${dir}`), function (componentName, cb) {
@@ -71,7 +78,7 @@ async.waterfall([
                     initWorker(`./${dir}/${componentName}`, cb);
                 } else {
                     if (componentName.endsWith("js")) {
-                        const component = require(`./${dir}/${componentName}`);
+                        const component = require(`../${dir}/${componentName}`);
                         if (component.init) {
                             initLogger.debug(`\x1b[36m[${n}]Initiating ${dir} ${componentName} \x1b[0m`);
                             component.init((err?: Error) => {
@@ -89,29 +96,20 @@ async.waterfall([
                 }
             }, err => cb(err));
         };
-        initWorker("models", (err: Error) => cb(err, initWorker));
+        initWorker("core", (err: Error) => cb(err, initWorker));
     },
 
-    function initializeServices (initWorker: Function, cb: Function) {
-        initWorker("services", (err: Error) => cb(err, initWorker));
-    },
+    // function initializeServices (initWorker: Function, cb: Function) {
+    //     initWorker("services", (err: Error) => cb(err, initWorker));
+    // },
 
     function initializeServices (initWorker: Function, cb: Function) {
-        initWorker("controllers", (err: Error) => cb(err));
+        initWorker("chat", (err: Error) => cb(err));
     },
 
     function startExpress (cb: Function) {
         app = express();
         const server = http.createServer(app);
-        const socketServer = http.createServer(function (q, r) {
-            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN) { r.setHeader("Access-Control-Allow-Origin", process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN); }
-            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_METHODS) { r.setHeader("Access-Control-Allow-Methods", process.env.SOCKET_ACCESS_CONTROL_ALLOW_METHODS); }
-            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_HEADERS) { r.setHeader("Access-Control-Allow-HEADERS", process.env.SOCKET_ACCESS_CONTROL_ALLOW_HEADERS); }
-            if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_CREDENTIALS) { r.setHeader("Access-Control-Allow-Credentials", process.env.SOCKET_ACCESS_CONTROL_ALLOW_CREDENTIALS); }
-
-            r.setHeader("Cache-Control", "no-cache");
-        });
-        const io = socket_io(socketServer);
 
         // app.use(lusca({
         //     csrf: true,
@@ -154,7 +152,26 @@ async.waterfall([
             return path.join(global.VIEWS_HTML_PATH, view);
         };
 
-        cb(undefined, server, socketServer, io);
+        cb(void 0, server);
+    },
+
+    function socketServer (server: http.Server, cb: Function) {
+        let socketServer, io;
+        if (flag_isolated_socket_port) {
+            socketServer = http.createServer(function (q, r) {
+                if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN) { r.setHeader("Access-Control-Allow-Origin", process.env.SOCKET_ACCESS_CONTROL_ALLOW_ORIGIN); }
+                if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_METHODS) { r.setHeader("Access-Control-Allow-Methods", process.env.SOCKET_ACCESS_CONTROL_ALLOW_METHODS); }
+                if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_HEADERS) { r.setHeader("Access-Control-Allow-HEADERS", process.env.SOCKET_ACCESS_CONTROL_ALLOW_HEADERS); }
+                if (process.env.SOCKET_ACCESS_CONTROL_ALLOW_CREDENTIALS) { r.setHeader("Access-Control-Allow-Credentials", process.env.SOCKET_ACCESS_CONTROL_ALLOW_CREDENTIALS); }
+
+                r.setHeader("Cache-Control", "no-cache");
+            });
+            io = socket_io(socketServer);
+            cb(void 0, server, socketServer, io);
+        } else {
+            io = socket_io(server);
+            cb(void 0, server, server, io);
+        }
     },
 
     function bindRouter (server: http.Server, socketServer: http.Server, io: socket_io.Server, cb: Function) {
@@ -180,13 +197,17 @@ async.waterfall([
         });
 
         const errorHandler: express.ErrorRequestHandler = (err, req, res) => {
+            if (err instanceof ErrorExt) {
+                res.status(err.statusCode).send({ code: err.statusCode.toString(), message: "internal server error" });
+            } else {
+                res.status(500).send({ code: "500", message: "internal server error" });
+            }
             initLogger.error(err);
-            res.status(500).send({ code: "500", message: "internal server error" });
         };
         app.use(errorHandler);
 
         process.on("uncaughtException", (err) => {
-            const error = new ErrorExt(err.message, 500);
+            const error = new BootErrors.BootstrapErrorException(err.message, { unexpected: true, unhandled: true });
             if (err.stack) error.stack = err.stack;
             initLogger.alert(error);
         });
@@ -221,9 +242,15 @@ async.waterfall([
     },
 
     function startListenSocket (socketServer: http.Server, cb: Function) {
-        const socketPort = parseInt(process.env.SOCKET_PORT) + NODE_APP_INSTANCE;
+        let socketPort;
+        if (flag_isolated_socket_port) {
+            socketPort = parseInt(process.env.SOCKET_PORT) + NODE_APP_INSTANCE;
+            socketServer.listen(socketPort);
+        } else {
+            socketPort = global.http_port;
+        }
+
         initLogger.info("Binding on SocketIO port " + socketPort);
-        socketServer.listen(socketPort);
         global.socket_port = socketPort;
         cb();
     },
@@ -258,5 +285,5 @@ async.waterfall([
         initLogger.error(err);
         throw "Failed to startup service";
     }
-    initLogger.info(`The service is prepared. ${global.host}`);
+    initLogger.info(`The service is prepared. ${global.host}:${global.http_port},${global.socket_port}`);
 });

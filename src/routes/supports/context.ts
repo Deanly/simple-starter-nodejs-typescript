@@ -1,9 +1,9 @@
 import socket_io from "socket.io";
 
-import User from "../../models/User";
-import Room from "../../models/Room";
+import User from "../../chat/models/User";
+import Room from "../../chat/models/Room";
 
-import { simple as logger } from "../../util/logger";
+import { simple as logger } from "../../logger";
 
 export class UserContext {
 

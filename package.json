@@ -11,15 +11,15 @@
   "scripts": {
     "start": "npm run build && npm run serve",
     "build": "npm run build-ts && npm run tslint",
-    "serve": "node dist/index.js",
-    "watch-node": "nodemon dist/index.js",
+    "serve": "node dist/app.js",
+    "watch-node": "nodemon dist/app.js",
     "test": "jest --forceExit --coverage --verbose",
     "watch-test": "npm run test -- --watchAll",
     "build-ts": "tsc",
     "watch-ts": "tsc -w",
     "tslint": "tslint -c tslint.json -p tsconfig.json",
     "debug": "npm run build && npm run serve-debug",
-    "serve-debug": "nodemon --inspect dist/index.js --debug"
+    "serve-debug": "nodemon --inspect dist/app.js --debug"
   },
   "dependencies": {
     "async": "^3.1.0",

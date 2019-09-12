@@ -1,7 +1,7 @@
 import Room from "../models/Room";
 import Message from "../models/Message";
 
-import { UserContext } from "../routes/supports/context";
+import { UserContext } from "../../routes/supports/context";
 
 const context_rooms: Map<string, Room> = new Map();
 const sample_room_id = "sample_room_id";

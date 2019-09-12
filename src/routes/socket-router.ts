@@ -1,10 +1,10 @@
 import socket_io from "socket.io";
 
-import User from "../models/User";
+import User from "../chat/models/User";
 import { UserContext } from "./supports/context";
-import * as userInbound from "../controllers/socket/user-inbound-controller";
-import * as userOutbound from "../controllers/socket/user-outbound-controller";
-import { simple as logger } from "../util/logger";
+import * as userInbound from "../chat/controllers/socket/user-inbound-controller";
+import * as userOutbound from "../chat/controllers/socket/user-outbound-controller";
+import { simple as logger } from "../logger";
 
 let _guest_count = 1;
 

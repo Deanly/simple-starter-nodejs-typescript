@@ -1,8 +1,8 @@
-import { UserContext } from "../../routes/supports/context";
+import { UserContext } from "../../../routes/supports/context";
 import * as outbound from "./user-outbound-controller";
 import * as chatService from "../../services/chat-service";
 
-import { simple as logger } from "../../util/logger";
+import { simple as logger } from "../../../logger";
 
 import {
     broadcastMessage,
