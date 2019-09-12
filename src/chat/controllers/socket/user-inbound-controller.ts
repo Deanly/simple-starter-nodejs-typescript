@@ -1,29 +1,24 @@
-import { UserContext } from "../../../routes/supports/context";
+import { UserContext } from "../../routes/socket-router";
 import * as outbound from "./user-outbound-controller";
 import * as chatService from "../../services/chat-service";
 
 import { simple as logger } from "../../../logger";
+
+import { SocketAPI } from "../../../core";
 
 import {
     broadcastMessage,
     broadcastRoom,
 } from "./user-outbound-controller";
 
-export const user_contexts: Map<string, UserContext> = new Map();
-
 export function joinServer (ctx: UserContext): void {
-    user_contexts.set(ctx.id, ctx);
     outbound.sendYou(ctx.user);
 
     logger.info(`Join User ${ctx.user.connId}`);
 }
 
 export function leaveServer (ctx: UserContext): void {
-    ctx.connection.disconnect();
-    // user_contexts.splice(user_contexts.map(ctx => ctx.id).indexOf(ctx.id), 1);
-
     ctx.rooms.forEach(room => chatService.leaveFromRoom(room.id, ctx));
-    user_contexts.delete(ctx.id);
 
     logger.info(`Leave User ${ctx.user.connId}`);
 }

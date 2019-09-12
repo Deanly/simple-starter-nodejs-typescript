@@ -13,9 +13,9 @@ import os from "os";
 
 require("./implements/global");
 
-import { simple as initLogger } from "../logger";
-import { init as initHttpRouter } from "../routes/http-router";
-import { init as initSocketRouter } from "../routes/socket-router";
+import { core as initLogger } from "../logger";
+import { initHttpRouter } from "./http-entry-service/router-http-entry";
+import { initSocketRouter } from "./socket-entry-service/router-socket-entry";
 import BootErrors from "./exceptions/BootErrors";
 
 let app: express.Express;
@@ -55,7 +55,7 @@ async.waterfall([
             initLogger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             initLogger.warning("!!!! Running with debug-mode enabled !!!!");
             initLogger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            initLogger.debug(JSON.stringify("process.env: " + process.env));
+            initLogger.debug("process.env: " + JSON.stringify(process.env));
         }
         return cb();
     },

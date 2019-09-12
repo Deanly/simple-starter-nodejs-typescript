@@ -1,27 +1,30 @@
 import socket_io from "socket.io";
 
-import User from "../../chat/models/User";
-import Room from "../../chat/models/Room";
+import { core as logger } from "../../logger";
 
-import { simple as logger } from "../../logger";
-
-export class UserContext {
+export default class BaseContext {
 
     constructor (
         public connection: socket_io.Socket,
         private errorHandler: (error: Error) => void,
     ) { }
 
-    user: User;
-    rooms: Map<string, Room> = new Map();
 
     get id () {
         return this.connection.id;
     }
+    get address () {
+        if (this.connection.handshake.headers["x-forwarded-for"]) return (this.connection.handshake as any)["x-forwarded-for"];
+        else return this.connection.handshake.address;
+    }
+
+    toString () {
+        return `{ id:${this.id}, address:${this.address} }`;
+    }
 
     on (event: string, listener: (...args: Array<any>) => Promise<void>): Function {
         const wrap = async (...args: Array<any>): Promise<void> => {
-            logger.debug(`received:${event} from ${this.user.name}(${this.id})`);
+            logger.debug(`received:${event} from (${this.id})`);
             try {
                 // Deserialize data
                 await listener.apply(undefined, args);
@@ -39,7 +42,7 @@ export class UserContext {
     }
 
     emit (event: string, ...data: Array<any>): void {
-        logger.debug(`sended:${event} to ${this.user.name}(${this.id})`);
+        logger.debug(`sended:${event} to (${this.id})`);
         const args = [event];
         data.forEach(value => {
             // Serialize data you want
