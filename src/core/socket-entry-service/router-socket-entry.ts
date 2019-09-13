@@ -21,11 +21,18 @@ function routeClient (connection: socket_io.Socket) {
         connection.on(CoreEvents.Disconnect, () => {
             Promise.all(evtManager.getAllListeners(CoreEvents.Disconnect).map(async fn => await fn(context)))
                 .catch(errorHandler)
-                .then(() => { logger.info(`[socket][disconnected]${context.toString()}`); })
-                .finally(() => ctxManager.del(context.id));
+                .then((res) => {
+                    context.connection.removeAllListeners();
+                    ctxManager.del(context.id);
+                })
+                .finally(() => {
+                    logger.info(`[socket][disconnected]: ${context.toString()}`);
+                    context.connection = void 0;
+                });
         });
 
         evtManager.getAllEvents()
+            .filter(event => !Object.values(CoreEvents).includes(event as CoreEvents))
             .forEach(event => {
                 evtManager.getAllListeners(event)
                     .forEach(listener => {
@@ -49,7 +56,7 @@ function routeClient (connection: socket_io.Socket) {
             delegateEventsToContext();
         })
         .finally(() => {
-            logger.info(`[socket][connected]${context.toString()}`);
+            logger.info(`[socket][connected]: ${context.toString()}`);
         });
 }
 

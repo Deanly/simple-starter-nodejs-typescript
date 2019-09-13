@@ -14,13 +14,13 @@ import {
 export function joinServer (ctx: UserContext): void {
     outbound.sendYou(ctx.user);
 
-    logger.info(`Join User ${ctx.user.connId}`);
+    logger.info(`Join User ${ctx.label}`);
 }
 
 export function leaveServer (ctx: UserContext): void {
     ctx.rooms.forEach(room => chatService.leaveFromRoom(room.id, ctx));
 
-    logger.info(`Leave User ${ctx.user.connId}`);
+    logger.info(`Leave User ${ctx.label}`);
 }
 
 export function joinRoom (ctx: UserContext, roomId: string): void {

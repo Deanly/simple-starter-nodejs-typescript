@@ -7,8 +7,11 @@ export default class BaseContext {
     constructor (
         public connection: socket_io.Socket,
         private errorHandler: (error: Error) => void,
-    ) { }
+    ) {
+        this.label = connection.id;
+    }
 
+    label: string;
 
     get id () {
         return this.connection.id;
@@ -24,7 +27,7 @@ export default class BaseContext {
 
     on (event: string, listener: (...args: Array<any>) => Promise<void>): Function {
         const wrap = async (...args: Array<any>): Promise<void> => {
-            logger.debug(`received:${event} from (${this.id})`);
+            logger.debug(`received:${event} from ${this.label}`);
             try {
                 // Deserialize data
                 await listener.apply(undefined, args);
@@ -42,7 +45,7 @@ export default class BaseContext {
     }
 
     emit (event: string, ...data: Array<any>): void {
-        logger.debug(`sended:${event} to (${this.id})`);
+        logger.debug(`sended:${event} to ${this.label}`);
         const args = [event];
         data.forEach(value => {
             // Serialize data you want

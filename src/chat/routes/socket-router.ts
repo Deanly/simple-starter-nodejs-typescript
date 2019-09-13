@@ -19,17 +19,19 @@ export class UserContext extends SocketAPI.BaseContext {
 }
 
 export function init (cb: Function) {
-    SocketAPI.regSocketRoute("chat", SocketAPI.CoreEvents.Connect, async (ctx: UserContext) => {
-        const user = new User();
-        user.connId = ctx.id;
-        user.name = `GUEST-${_guest_count++}`;
-        ctx.user = user;
+    SocketAPI.regSocketRoute("chat", SocketAPI.CoreEvents.Connect,
+        async (ctx: UserContext) => {
+            const user = new User();
+            user.connId = ctx.id;
+            user.name = `GUEST-${_guest_count++}`;
+            ctx.user = user;
+            ctx.label = `${user.name}(${ctx.id})`;
 
-        ctx.rooms = new Map();
+            ctx.rooms = new Map();
 
-        userInbound.joinServer(ctx);
-        userInbound.joinRoom(ctx, "sample_room_id");
-    });
+            userInbound.joinServer(ctx);
+            userInbound.joinRoom(ctx, "sample_room_id");
+        });
 
     SocketAPI.regSocketRoute("chat", SocketAPI.CoreEvents.Disconnect,
         async (ctx: UserContext) => {
