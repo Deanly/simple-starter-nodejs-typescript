@@ -31,6 +31,12 @@ export function init (cb: Function) {
         userInbound.joinRoom(ctx, "sample_room_id");
     });
 
+    SocketAPI.regSocketRoute("chat", SocketAPI.CoreEvents.Disconnect,
+        async (ctx: UserContext) => {
+            userInbound.leaveRoom(ctx, "sample_room_id");
+            userInbound.leaveServer(ctx);
+        });
+
     SocketAPI.regSocketRoute("chat", "message:send",
         async (ctx: UserContext, roomId: string, msg: string) =>
             userInbound.receiveMessage(ctx, roomId, msg));
