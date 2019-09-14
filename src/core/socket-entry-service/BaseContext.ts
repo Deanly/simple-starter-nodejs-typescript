@@ -15,6 +15,7 @@ export default class BaseContext {
 
     private authorityToNamespaces: Set<string>;
 
+    token: string;
     delegated: boolean;
     label: string;
 
