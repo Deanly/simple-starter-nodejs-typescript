@@ -1,13 +1,13 @@
 {
-  "name": "dean-system-web",
-  "version": "0.1.0",
-  "description": "my totally system",
+  "name": "simple-nodejs-typescript-starter",
+  "version": "0.2.0",
+  "description": "simple",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/Deanly/simple-starter-nodejs-typescript"
   },
   "author": "deanly88@gmail.com",
-  "license": "",
+  "license": "MIT",
   "scripts": {
     "start": "npm run build && npm run serve",
     "build": "npm run build-ts && npm run tslint",
