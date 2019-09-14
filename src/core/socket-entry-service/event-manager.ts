@@ -13,6 +13,10 @@ export function getNamespace (namespace: string) {
     }
 }
 
+export function getAllNamespaces () {
+    return Array.from(event_contexts.values());
+}
+
 export function clearNamespace (namespace: string) {
     event_contexts.delete(namespace);
 }
@@ -38,7 +42,16 @@ export function getListeners (namespace: string, event: string): Array<SocketLis
 }
 
 export function getAllListeners (event: string): Array<SocketListener> {
-    return Array.from(event_contexts.values())
+    return getAllNamespaces()
+        .reduce((arr, events) => {
+            arr.push(...Array.from(events.has(event) ? events.get(event).values() : []));
+            return arr;
+        }, []);
+}
+
+export function getAllGrantedListeners (context: BaseContext, event: string): Array<SocketListener> {
+    return context.authorities
+        .map(namespace => getNamespace(namespace))
         .reduce((arr, events) => {
             arr.push(...Array.from(events.has(event) ? events.get(event).values() : []));
             return arr;
@@ -47,7 +60,7 @@ export function getAllListeners (event: string): Array<SocketListener> {
 
 export function getAllEvents () {
     return Array.from(
-        Array.from(event_contexts.values())
+        getAllNamespaces()
         .reduce((sets, events) => {
             Array.from(events.keys())
                 .forEach(event => sets.add(event));

@@ -21,7 +21,7 @@ function routeClient (connection: socket_io.Socket) {
         connection.on(CoreEvents.Disconnect, () => {
             Promise.all(evtManager.getAllListeners(CoreEvents.Disconnect).map(async fn => await fn(context)))
                 .catch(errorHandler)
-                .then((res) => {
+                .then(() => {
                     context.connection.removeAllListeners();
                     ctxManager.del(context.id);
                 })
@@ -34,7 +34,7 @@ function routeClient (connection: socket_io.Socket) {
         evtManager.getAllEvents()
             .filter(event => !Object.values(CoreEvents).includes(event as CoreEvents))
             .forEach(event => {
-                evtManager.getAllListeners(event)
+                evtManager.getAllGrantedListeners(context, event)
                     .forEach(listener => {
                         context.on(event, async (...args: any[]) => {
                             listener(context, ...args);
@@ -45,6 +45,8 @@ function routeClient (connection: socket_io.Socket) {
 
     // ... authorization
 
+    context.grantAuthority("normal");
+
     ctxManager.set(context.id, context);
 
     Promise.all(evtManager.getAllListeners(CoreEvents.Connect).map(async fn => await fn(context)))
@@ -54,6 +56,7 @@ function routeClient (connection: socket_io.Socket) {
         })
         .then(() => {
             delegateEventsToContext();
+            context.delegated = true;
         })
         .finally(() => {
             logger.info(`[socket][connected]: ${context.toString()}`);

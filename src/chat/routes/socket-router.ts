@@ -13,13 +13,17 @@ function errorHandler (error: Error): void {
     logger.error(error);
 }
 
+export enum ChatAuthorities {
+    Chat = "chat"
+}
+
 export class UserContext extends SocketAPI.BaseContext {
     user: User;
     rooms: Map<string, Room>;
 }
 
 export function init (cb: Function) {
-    SocketAPI.regSocketRoute("chat", SocketAPI.CoreEvents.Connect,
+    SocketAPI.regSocketRoute(ChatAuthorities.Chat, SocketAPI.CoreEvents.Connect,
         async (ctx: UserContext) => {
             const user = new User();
             user.connId = ctx.id;
@@ -28,22 +32,23 @@ export function init (cb: Function) {
             ctx.label = `${user.name}(${ctx.id})`;
 
             ctx.rooms = new Map();
+            ctx.grantAuthority(ChatAuthorities.Chat);
 
             userInbound.joinServer(ctx);
             userInbound.joinRoom(ctx, "sample_room_id");
         });
 
-    SocketAPI.regSocketRoute("chat", SocketAPI.CoreEvents.Disconnect,
+    SocketAPI.regSocketRoute(ChatAuthorities.Chat, SocketAPI.CoreEvents.Disconnect,
         async (ctx: UserContext) => {
             userInbound.leaveRoom(ctx, "sample_room_id");
             userInbound.leaveServer(ctx);
         });
 
-    SocketAPI.regSocketRoute("chat", "message:send",
+    SocketAPI.regSocketRoute(ChatAuthorities.Chat, "message:send",
         async (ctx: UserContext, roomId: string, msg: string) =>
             userInbound.receiveMessage(ctx, roomId, msg));
 
-    SocketAPI.regSocketRoute("chat", "user:name",
+    SocketAPI.regSocketRoute(ChatAuthorities.Chat, "user:name",
         async (ctx: UserContext, name: string) =>
             userInbound.changeUserName(ctx, name));
 
