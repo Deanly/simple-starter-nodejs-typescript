@@ -209,7 +209,7 @@ async.waterfall([
         process.on("uncaughtException", (err) => {
             const error = new BootErrors.BootstrapErrorException(err.message, { unexpected: true, unhandled: true });
             if (err.stack) error.stack = err.stack;
-            initLogger.alert(error);
+            initLogger.emerg(error);
         });
 
         cb(undefined, server, socketServer);
