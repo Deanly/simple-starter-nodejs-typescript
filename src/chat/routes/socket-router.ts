@@ -23,22 +23,28 @@ export class UserContext extends SocketAPI.BaseContext {
 }
 
 export function init (cb: Function) {
-    SocketAPI.regSocketRoute(ChatAuthorities.Chat, SocketAPI.CoreEvents.Connect,
-        async (ctx: UserContext) => {
-            const user = new User();
-            user.connId = ctx.id;
-            user.name = `GUEST-${_guest_count++}`;
-            ctx.user = user;
-            ctx.label = `${user.name}(${ctx.id})`;
+    SocketAPI.regSocketRoute(ChatAuthorities.Chat, SocketAPI.CoreEvents.Grant,
+        async (ctx: UserContext, authorized: boolean) => {
+            if (authorized) {
+                const user = new User();
+                user.connId = ctx.id;
+                user.name = `GUEST-${_guest_count++}`;
+                ctx.user = user;
+                ctx.label = `${user.name}(${ctx.id})`;
 
+                ctx.grantAuthority(ChatAuthorities.Chat);
+            }
+        });
+
+    SocketAPI.regSocketRoute(ChatAuthorities.Chat, SocketAPI.CoreEvents.ConnectOnGranted,
+        async (ctx: UserContext) => {
             ctx.rooms = new Map();
-            ctx.grantAuthority(ChatAuthorities.Chat);
 
             userInbound.joinServer(ctx);
             userInbound.joinRoom(ctx, "sample_room_id");
         });
 
-    SocketAPI.regSocketRoute(ChatAuthorities.Chat, SocketAPI.CoreEvents.Disconnect,
+    SocketAPI.regSocketRoute(ChatAuthorities.Chat, SocketAPI.CoreEvents.DisconnectOnGranted,
         async (ctx: UserContext) => {
             userInbound.leaveRoom(ctx, "sample_room_id");
             userInbound.leaveServer(ctx);

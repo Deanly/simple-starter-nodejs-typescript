@@ -11,15 +11,15 @@ function errorHandler (error: Error): void {
 }
 
 export enum CoreEvents {
-    Connect = "connect", Disconnect = "disconnect"
+    ConnectOnGranted = "auth:connect", DisconnectOnGranted = "auth:disconnect", Grant = "auth:grant"
 }
 
-function routeClient (connection: socket_io.Socket) {
+async function routeClient (connection: socket_io.Socket) {
     const context = new BaseContext(connection, errorHandler);
 
     const delegateEventsToContext = () => {
-        connection.on(CoreEvents.Disconnect, () => {
-            Promise.all(evtManager.getAllListeners(CoreEvents.Disconnect).map(async fn => await fn(context)))
+        connection.on("disconnect", () => {
+            Promise.all(evtManager.getAllGrantedListeners(context, CoreEvents.DisconnectOnGranted).map(async fn => await fn(context)))
                 .catch(errorHandler)
                 .then(() => {
                     context.connection.removeAllListeners();
@@ -43,13 +43,19 @@ function routeClient (connection: socket_io.Socket) {
             });
     };
 
-    // ... authorization
+    try {
+        // ... authentication or authorization ...
+        const authorized = true;
+        await Promise.all(evtManager.getAllListeners(CoreEvents.Grant).map(async fn => await fn(context, authorized)));
+    } catch (e) {
+        errorHandler(e);
+        return;
+    }
 
     context.grantAuthority("normal");
-
     ctxManager.set(context.id, context);
 
-    Promise.all(evtManager.getAllListeners(CoreEvents.Connect).map(async fn => await fn(context)))
+    Promise.all(evtManager.getAllGrantedListeners(context, CoreEvents.ConnectOnGranted).map(async fn => await fn(context)))
         .catch(e => {
             errorHandler(e);
             ctxManager.del(context.id);
